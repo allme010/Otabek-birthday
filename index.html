@@ -1,34 +1,133 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tug'ilgan kuning muborak, Otabek!</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tug'ilgan kun muborak, Otabek!</title>
   <style>
     body {
       margin: 0;
-      padding: 20px;
+      padding: 0;
       background: #fffbe6;
       font-family: sans-serif;
       text-align: center;
+      overflow: hidden;
     }
     #cake {
       font-size: 100px;
-      margin-top: 50px;
+      margin-top: 100px;
+      position: relative;
+    }
+    .flame {
+      width: 10px;
+      height: 20px;
+      background: orange;
+      border-radius: 50%;
+      position: absolute;
+      top: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      animation: flicker 0.3s infinite;
+    }
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
     #message {
-      margin-top: 20px;
+      display: none;
+      margin-top: 30px;
       font-size: 24px;
-      color: #444;
+      color: #333;
+      animation: fadeIn 2s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    canvas.confetti {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
     }
   </style>
 </head>
 <body>
-  <div id="cake">🎂</div>
+  <div id="cake">🎂<div class="flame" id="flame"></div></div>
+  <p style="font-size: 18px;">🎤 Shamni o‘chirish uchun mikrofonga puflang</p>
   <div id="message">
     <strong>Otabek!</strong><br><br>
     Tug‘ilgan kuning muborak! 🥳<br><br>
     Senga sog‘liq, baxt va yorqin hayot tilayman!
   </div>
+  <canvas class="confetti" id="confetti"></canvas>
+
+  <script>
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        source.connect(analyser);
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        function detectBlow() {
+          analyser.getByteFrequencyData(dataArray);
+          const avg = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          if (avg > 60) blowOut();
+          else requestAnimationFrame(detectBlow);
+        }
+        detectBlow();
+      })
+      .catch(e => console.error('Mikrofon ishlamadi:', e));
+
+    function blowOut() {
+      document.getElementById('flame').style.display = 'none';
+      document.getElementById('message').style.display = 'block';
+      startConfetti();
+    }
+
+    function startConfetti() {
+      const canvas = document.getElementById('confetti');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const confetti = Array.from({length: 200}, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        r: Math.random() * 6 + 4,
+        d: Math.random() * 10 + 10,
+        color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+        tilt: Math.random() * 10 - 10
+      }));
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        confetti.forEach(p => {
+          ctx.beginPath();
+          ctx.lineWidth = p.r;
+          ctx.strokeStyle = p.color;
+          ctx.moveTo(p.x + p.tilt + p.r, p.y);
+          ctx.lineTo(p.x + p.tilt, p.y + p.r);
+          ctx.stroke();
+        });
+        confetti.forEach(p => {
+          p.y += Math.cos(p.d) + 1;
+          p.tilt += Math.sin(p.d) * 0.5;
+          if (p.y > canvas.height) {
+            p.y = -10;
+            p.x = Math.random() * canvas.width;
+          }
+        });
+        requestAnimationFrame(draw);
+      }
+
+      draw();
+    }
+  </script>
 </body>
 </html>
